@@ -2,6 +2,7 @@
 
 # imports
 from flask import Flask, render_template, request, session, flash, redirect, url_for, g
+from functools import wraps
 import sqlite3
 
 # configuration
@@ -36,12 +37,24 @@ def logout():
     flash('You were logged out')
     return redirect(url_for('login'))
 
+def login_required(test):
+    @wraps(test)
+    def wrap(*args, **kwargs):
+        if 'logged_in' in session:
+            return test(*args, **kwargs)
+        else:
+            flash('You need to login first.')
+            return redirect(url_for('login'))
+    return wrap
+
 @app.route('/main')
+@login_required
 def main():
-    return render_template('main.html')
-
-
-
+    g.db = connect_db()
+    cur = g.db.execute("SELECT * FROM posts")
+    posts = [dict(title = row[0], post = row[1]) for row in cur.fetchall()]
+    g.db.close()
+    return render_template('main.html', posts = posts)
 
 if __name__ == "__main__":
     app.run(debug = True)\
